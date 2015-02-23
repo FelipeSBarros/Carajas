@@ -129,11 +129,8 @@ cd ..
 ##ALVO: ESPESCIES AMEACADAS
 ######
 ##############
-Organizaçãodo banco de dadosfauna com categoria
-alter table fauna.repteis_sir add column ameaca_geral varchar(4);
-update fauna.repteis_sir set ameaca_geral=ameaca_iucn where ameaca_iucn in('CR','VU','NT');
-update fauna.repteis_sir set ameaca_geral=ameaca_br where ameaca_br in('CR','VU','NT');
-update fauna.repteis_sir set ameaca_geral=ameaca_para where ameaca_para in('CR','VU','NT');
+Organizaçãodo banco de dados fauna com categoria
+VER GIT-HUB ADEUQACAO BD
 ##############
 
 mkdir ameacadas
