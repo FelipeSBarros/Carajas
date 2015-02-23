@@ -15,3 +15,23 @@ update fauna.repteis_sir set ameaca_geral=ameaca_iucn where ameaca_iucn in('CR',
 update fauna.repteis_sir set ameaca_geral=ameaca_br where ameaca_br in('CR','VU','NT');
 update fauna.repteis_sir set ameaca_geral=ameaca_para where ameaca_para in('CR','VU','NT');
 ##############
+
+
+
+##Inserção dados sobre custo no BD:
+--Alterando tabela geoambiente para adicionar coluna de recurso_reserva
+alter table public.geoambientes add column recursos_reserva numeric
+--Alterando tabela geoambiente para adicionar coluna de distancia
+alter table public.geoambientes add column distancia numeric
+
+--Alterando tabela geoambiente para adicionar coluna de area
+alter table public.geoambientes add column area numeric
+
+update public.geoambientes set recursos_reserva=10616.1 where local LIKE 'Corpo%'
+
+update public.geoambientes set distancia=17700 where local LIKE 'Corpo D'
+
+update public.geoambientes set area=16.36 where local LIKE 'Corpo D'
+
+
+select * from public.geoambientes where local LIKE 'Corpo%'
