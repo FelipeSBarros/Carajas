@@ -287,7 +287,7 @@ su postgres
 #Nao e necessario Criar a lista dos geoambientes umidos
 pgsql2shp -f nascentes.shp -h localhost -u postgres -P postgres carajas "SELECT row_number()over(order by g.gid) as id, 1 as val, g.geom FROM public.nascentes as c join grid.grid_sir as g ON ST_intersects(c.geom, g.geom) GROUP BY g.geom, g.gid"
 ######
-##Rasterizando nascentes
+##Rasterizando
 ######
 for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
 cd ..
@@ -307,7 +307,7 @@ pgsql2shp -f mascara2.shp -h localhost -u postgres -P postgres carajas "select 2
 pgsql2shp -f mascara3.shp -h localhost -u postgres -P postgres carajas "select 3 as val, g.geom from cavernas.cavernas c inner join grid.grid_sir g on st_intersects(c.geom,g.geom) where c.rel_maxima='1' union select 3 as val, g.geom from cavernas.cavernas c inner join grid.grid_sir g on st_intersects(c.geom,g.geom) where c.cav_testemunho='1' union select 3 as val, g.geom from infra_estrutura.lagos_buffers_500 lb inner join grid.grid_sir g on st_intersects(lb.geom,g.geom)"
 --feito processamento para retirar sobreposicao (removido plo de valo 2 sobreporto ao 1.Removido polvalor 2 sobreposto valor 3. marge dos shps e rasterização
 ######
-##Rasterizando nascentes
+##Rasterizando Mascara
 ######
 for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
 cd ..
