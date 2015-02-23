@@ -1,0 +1,17 @@
+
+############## FLORA
+--ADEQUANDO GRAFIA ESPECIE MITRACARPUS CARAJAENSIS FLORA:
+select * from flora.flora where nome_spp like '%carpus_cara%'
+
+UPDATE flora.flora set nome_spp = 'Mitracarpus_carajasensis_E_L_Cabral' where nome_spp = 'Mitracarpus_carajasensis_E_L_Cabral,_Sobrado_&_E_B_Souza'
+
+
+
+
+############## FAUNA
+Organizaçãodo banco de dados fauna com categoria
+alter table fauna.repteis_sir add column ameaca_geral varchar(4);
+update fauna.repteis_sir set ameaca_geral=ameaca_iucn where ameaca_iucn in('CR','VU','NT');
+update fauna.repteis_sir set ameaca_geral=ameaca_br where ameaca_br in('CR','VU','NT');
+update fauna.repteis_sir set ameaca_geral=ameaca_para where ameaca_para in('CR','VU','NT');
+##############
