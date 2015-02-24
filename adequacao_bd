@@ -27,7 +27,10 @@ alter table public.geoambientes add column distancia numeric
 --Alterando tabela geoambiente para adicionar coluna de area
 alter table public.geoambientes add column area numeric
 
-update public.geoambientes set recursos_reserva=10616.1 where local LIKE 'Corpo%'
+----Alterando tabela geoambiente para adicionar coluna de raw_cost valor rec_reserv/dist/area
+alter table public.geoambientes add column raw_cost numeric
+
+update public.geoambientes set recursos_reserva=5000 where local = 'Corpo D'
 
 update public.geoambientes set distancia=17700 where local LIKE 'Corpo D'
 
@@ -35,3 +38,9 @@ update public.geoambientes set area=16.36 where local LIKE 'Corpo D'
 
 
 select * from public.geoambientes where local LIKE 'Corpo%'
+
+update public.geoambientes set raw_cost= recursos_reserva / distancia 
+
+select min(raw_cost) from public.geoambientes where local LIKE 'Corpo%'
+0.28248587570621468927
+0.07342683016374183127
