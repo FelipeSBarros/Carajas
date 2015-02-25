@@ -312,6 +312,20 @@ pgsql2shp -f mascara3.shp -h localhost -u postgres -P postgres carajas "select 3
 for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
 cd ..
 
+--CUSTO
+##############
+## ALVO: CRIAR CUSTO
+##############
+cd Custo/Outptu
+pgsql2shp -f custo.shp -h localhost -u postgres -P postgres carajas "select round(avg(c.final_cost)::numeric,5) as custo , g.geom from geoambientes c inner join grid.grid_sir g on (g.geom && c.geom) and st_intersects(g.geom, c.geom) group by g.geom"
+for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a CUSTO -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
+
+for a in  *.*; do chmod 777 $a; done
+
+cd ..
+
+
+
 
 ##############
 ##MODELOS
