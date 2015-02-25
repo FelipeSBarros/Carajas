@@ -30,6 +30,11 @@ alter table public.geoambientes add column area numeric
 ----Alterando tabela geoambiente para adicionar coluna de raw_cost valor rec_reserv/dist/area
 alter table public.geoambientes add column raw_cost numeric
 
+--Alterando tabela adicionando coluna cost
+alter table public.geoambientes add column final_cost numeric
+
+
+--Preenchendo as colunas
 update public.geoambientes set recursos_reserva=5000 where local = 'Corpo D'
 
 update public.geoambientes set distancia=17700 where local LIKE 'Corpo D'
@@ -41,6 +46,14 @@ select * from public.geoambientes where local LIKE 'Corpo%'
 
 update public.geoambientes set raw_cost= recursos_reserva / distancia 
 
-select min(raw_cost) from public.geoambientes where local LIKE 'Corpo%'
-0.28248587570621468927
-0.07342683016374183127
+
+select max(raw_cost) from geoambientes  
+where local='Tarzan'
+
+
+update geoambientes set raw_cost = recursos_reserva/(distancia*2)/area
+min 0.00129163627522489668
+max 0.42806183115338882759
+
+
+update public.geoambientes set final_cost=raw_cost/0.42806183115338882759 where raw_cost is not null
