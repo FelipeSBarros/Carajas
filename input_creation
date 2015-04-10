@@ -1,302 +1,166 @@
 quit()
-#indo para diretorio de trabalho
-cd Dropbox/CARAJAS/Dados
-#Trabalhando como superusuario
-sudo su
-su postgres
+
+cd pgsql/Carajas/workshop
+
+######################
+#MUDANCAS DE CUSTO!
+######################
+--TARZAN
+ pgsql2shp -f teste_tarzan.shp -h localhost -u postgres -P postgres carajas "select t.massa, g.geom from workshop.grid_500_tarzan_sir t inner join grid.grid_sir g on st_intersects(g.geom, t.geom)"
+
+--corpos AB
+pgsql2shp -f teste_ab.shp -h localhost -u postgres -P postgres carajas "select ab.massa, g.geom from workshop.grid_500_ab_sir ab inner join grid.grid_sir g on st_intersects(g.geom, st_centroid(ab.geom))"
+
+Custo PTOS
+pgsql2shp -f ptos.shp -h localhost -u postgres -P postgres carajas "select sum(ptos.massa), g.geom from workshop.recursos_ptos_sir ptos inner join grid.grid_sir g on st_intersects(g.geom, st_centroid(ptos.geom))group by g.geom"
+
+UNIAO TODOS
+pgsql2shp -f custo_final.shp -h localhost -u postgres -P postgres carajas  "select sum(ptos.massa), g.geom from workshop.recursos_ptos_sir ptos inner join grid.grid_sir g on st_intersects(g.geom, st_centroid(ptos.geom))group by g.geom union select ab.massa, g.geom from workshop.grid_500_ab_sir ab inner join grid.grid_sir g on st_intersects(g.geom, st_centroid(ab.geom)) union select t.massa, g.geom from workshop.grid_500_tarzan_sir t inner join grid.grid_sir g on st_intersects(g.geom, t.geom)"
+
+gdal_rasterize -a SUM -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l custo_final custo_final.shp custo_final.tif
+
+mkdir cavernas
+sudo chmod 777 cavernas
 
 --Cavernas
 ######
 # ALVO: Projecao horizontal: 
 ######
-#um raster com valor do pixel = valor soma porj.horiz. da tabela 'espeleometria'
+#um raster com valor do pixel = quantidade cavernas com PH>93(media+devpad) [atributo porj.horiz. da tabela 'espeleometria']
 #NAO HA NECESSIDADE DE CRIAR CSV
 ######
 ##criando o shp
 ######
-pgsql2shp -f ./Cavernas/Output/shp/proj_horizontal_consolidado.shp -h localhost -u postgres -P postgres carajas "SELECT round(sum(c.proj_horizontal),2) as val, g.geom FROM cavernas.espeleometria as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) GROUP BY g.geom"
+cd cavernas
+sudo su
+su postgres
+pgsql2shp -f proj_horizontal_workshop.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.proj_horizontal) as val, g.geom FROM cavernas.espeleometria as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.proj_horizontal>=93 GROUP BY g.geom"
 
-#um rast para as localidades com proj_horizontal>100
-pgsql2shp -f ./Cavernas/Output/shp/proj_horizontal_maiores_100.shp -h localhost -u postgres -P postgres carajas "SELECT round(sum(c.proj_horizontal),2) as val, g.geom FROM cavernas.espeleometria as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.proj_horizontal>100 GROUP BY g.geom"
+######
+# ALVO: AREA
+######
+pgsql2shp -f area_workshop.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.proj_horizontal) as val, g.geom FROM cavernas.espeleometria as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.area>=362.5 GROUP BY g.geom"
 
 ######
 # ALVO: Densidade de Caverna
 ######
 #count cavernas contidas no grid
-pgsql2shp -f ./Cavernas/Output/shp/Densidade_Cav.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.gid) as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) GROUP BY g.geom"
+pgsql2shp -f Densidade_Cav.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.gid) as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) GROUP BY g.geom"
 
 ######
-# ALVO: BAT cave; Quiroptero; Alta Riqueza spp; TROGLOBIOS
+# ALVO: Alta Riqueza spp
 ######
-##BAT_CAVE
-pgsql2shp -f ./Cavernas/Output/shp/bat_cave.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.bat_cave='1' GROUP BY g.geom"
+pgsql2shp -f alta_riqueza_spp.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.gid) as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.alta_riqueza_spp='1' GROUP BY g.geom"
+
+######
+# ALVO: TROGLOMOFICOS
+######
+pgsql2shp -f troglobios_spp.shp -h localhost -u postgres -P postgres carajas "SELECT count(distinct c.troglomorfismo) as val, g.geom FROM fauna.fauna_cav_sir as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) GROUP BY g.geom"
+
 ##QUIROPTERO
-pgsql2shp -f ./Cavernas/Output/shp/quiropteros.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.quiropteros='1' GROUP BY g.geom"
-##ALTA RIQUEZA SPP
-pgsql2shp -f ./Cavernas/Output/shp/alta_riqueza_spp.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.alta_riqueza_spp='1' GROUP BY g.geom"
+pgsql2shp -f quiropteros.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.quiropteros='1' GROUP BY g.geom"
 
-######
-# ALVO: Maxima relevancia; testemunho
-######
-##Relevancia maxima
-pgsql2shp -f ./Cavernas/Output/shp/relevancia_maxima.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.rel_maxima='1' GROUP BY g.geom"
-##Testemunho
-pgsql2shp -f ./Cavernas/Output/shp/cav_testemunho.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.cav_testemunho='1' GROUP BY g.geom"
+##BAT_CAVE
+pgsql2shp -f bat_cave.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.bat_cave='1' GROUP BY g.geom"
 
 ######
 # ALVO: presenca agua
 ######
-pgsql2shp -f ./Cavernas/Output/shp/cav_agua.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.pres_agua='1' GROUP BY g.geom"
+pgsql2shp -f cav_agua.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.gid) as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.pres_agua='1' GROUP BY g.geom"
+
 ######
 # ALVO: Litologias(Mafica, FFB, Ferricrete, Canga), Espeleotemas raros ediversidade
 ######
 ##Mafica
-pgsql2shp -f ./Cavernas/Output/shp/cav_mafica.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.mafica='1' GROUP BY g.geom"
+pgsql2shp -f cav_mafica.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.gid) as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.mafica='1' GROUP BY g.geom"
 ##FFB
-pgsql2shp -f ./Cavernas/Output/shp/cav_ffb.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.ffb='1' GROUP BY g.geom"
+pgsql2shp -f cav_ffb.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.gid) as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.ffb='1' GROUP BY g.geom"
 ##ferricrete
-pgsql2shp -f ./Cavernas/Output/shp/cav_ferricrete.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.ferricrete='1' GROUP BY g.geom"
+pgsql2shp -f cav_ferricrete.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.gid) as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.ferricrete='1' GROUP BY g.geom"
 ##canga
-pgsql2shp -f ./Cavernas/Output/shp/cav_canga.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.canga='1' GROUP BY g.geom"
+pgsql2shp -f cav_canga.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.gid) as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.canga='1' GROUP BY g.geom"
+
 ##espeleotemas raros
-pgsql2shp -f ./Cavernas/Output/shp/cav_espeleot_raros.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.espeleotem_raros='1' GROUP BY g.geom"
+DESONSIDERADO REDUNDANTE COM MAXIMA RELEVANCIA
+
 ##diversidade espeleotemas
-pgsql2shp -f ./Cavernas/Output/shp/cav_espeleot_diversidade.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.espeleotem_diversidade='1' GROUP BY g.geom"
+pgsql2shp -f cav_espeleot_diversidade.shp -h localhost -u postgres -P postgres carajas "SELECT count(c.gid) as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.espeleotem_diversidade='1' GROUP BY g.geom"
+
+######
+# ALVO: Maxima relevancia; testemunho DESCONSIDERADOS PELA REDUNDANCIA COM PH E AREA
+######
+##Relevancia maxima
+--#pgsql2shp -f ./Cavernas/Output/shp/relevancia_maxima.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.rel_maxima='1' GROUP BY g.geom"
+##Testemunho
+--#pgsql2shp -f ./Cavernas/Output/shp/cav_testemunho.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM cavernas.cavernas as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) where c.cav_testemunho='1' GROUP BY g.geom"
+
 ######
 ##Rasterizando TODOS os shapes em /output/shp
 ######
 cd Cavernas/Output/shp/
-for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a /home/felipe/Dropbox/CARAJAS/Dados/Cavernas/Output/rast/${a%.*}.tif; done
-cd ..
-###########################################
-
-
---FAUNA
-##1 raster por especie
-######
-# ALVO: lsita das spp
-######
-#Criando csv com nome das especies
-cd Fauna/Output
-sudo su
-su postgres
-psql carajas
-##ANFIBIOS
-COPY (SELECT distinct(f.nome_spp_atualizada), count(f.gid) as val FROM fauna.anfibios_sir as f JOIN grid.grid_sir as g ON ST_Contains(g.geom, f.geom) group by f.nome_spp_atualizada ORDER BY f.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/lista_anfibios.csv' WITH CSV HEADER;
-###AVES
-COPY (SELECT distinct(f.nome_spp_atualizada), count(f.gid) as val FROM fauna.aves_sir as f JOIN grid.grid_sir as g ON ST_Contains(g.geom, f.geom) group by f.nome_spp_atualizada ORDER BY f.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/lista_aves.csv' WITH CSV HEADER;
-###MG MAMIFEROS
-COPY (SELECT distinct(f.nome_spp_atualizada), count(f.gid) as val FROM fauna.mg_mamiferos_sir as f JOIN grid.grid_sir as g ON ST_Contains(g.geom, f.geom) group by f.nome_spp_atualizada ORDER BY f.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/lista_mg_mamiferos.csv' WITH CSV HEADER;
-###MORCEGOS
-COPY (SELECT distinct(f.nome_spp_atualizada), count(f.gid) as val FROM fauna.morcegos_sir as f JOIN grid.grid_sir as g ON ST_Contains(g.geom, f.geom) group by f.nome_spp_atualizada ORDER BY f.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/lista_morcegos.csv' WITH CSV HEADER;
-###PEQ MAMIFEROS
-COPY (SELECT distinct(f.nome_spp_atualizada), count(f.gid) as val FROM fauna.peq_mamiferos_sir as f JOIN grid.grid_sir as g ON ST_Contains(g.geom, f.geom) group by f.nome_spp_atualizada ORDER BY f.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/lista_peq_mamiferos.csv' WITH CSV HEADER;
-###REPTEIS
-COPY (SELECT distinct(f.nome_spp_atualizada), count(f.gid) as val FROM fauna.repteis_sir as f JOIN grid.grid_sir as g ON ST_Contains(g.geom, f.geom) group by f.nome_spp_atualizada ORDER BY f.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/lista_repteis.csv' WITH CSV HEADER;
-###TROGLOMOSFICOS
-COPY (SELECT distinct(f.troglomorfismo) as nome_spp_atualizada, count(f.gid) as val FROM fauna.fauna_cav_sir as f JOIN grid.grid_sir as g ON ST_Contains(g.geom, f.geom) group by f.troglomorfismo ORDER BY f.troglomorfismo) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/lista_troglomosficos.csv' WITH CSV HEADER;
-#### Saindo do PGSQL
-\q
-exit
-##Criar um doc BASH:
-#!/bin/bash
-while IFS="," read nome_spp count
-do
-echo "Generating shapefile $nome_spp.shp com $count registros"
-ogr2ogr -f "ESRI Shapefile" Lista_spp/shp/$nome_spp.shp PG:" host=localhost dbname='carajas' user='postgres' password='postgres'" -lco SCHEMA=fauna -sql "SELECT f.nome_spp_atualizada as nome_spp, 1 as val, g.geom FROM fauna.anfibios_sir as f JOIN grid.grid_sir as g ON ST_Contains(g.geom, f.geom) WHERE f.nome_spp_atualizada='$nome_spp' group by g.geom, f.nome_spp_atualizada"; done < lista_anfibios.csv
-
-###Alguns passos mais no bash
-chmod 775 anfibios_EXE.sh
-chmod 775 aves_EXE.sh
-chmod 775 mg_mamiferos_EXE.sh
-./anfibios_EXE.sh
-./aves_EXE.sh
-./mg_mamiferos_EXE.sh
-./morcegos_EXE.sh
-./peq_mamiferos_EXE.sh
-./repteis_EXE.sh
-./troglomoficos_EXE.sh
-
-######
-##Rasterizando a lista de spp fauna/output/shp
-######
-cd Lista_spp/anfibios/
 for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
 cd ..
+
 ###########################################
+ATUALIZACOES DA FLORA
+cd flora/mudancas
+ls *.shp
+sudo su
+su postgres
+for a in *.shp; do shp2pgsql -W UTF8 -s 31982 $a workshop.${a%.*} | psql -h localhost -d carajas ;done
+
 
 ######
 ##ALVO: ESPESCIES AMEACADAS
 ######
-##############
-Organizaçãodo banco de dados fauna com categoria
-VER GIT-HUB ADEUQACAO BD
-##############
-
 mkdir ameacadas
-chmod 775 ameacadas
-
+sudo chmod 777 ameacadas
+cd ..
+cd flora/mudancas/ameacadas
 sudo su
 su postgres
 psql carajas
+
 ## Listar spp ameacadas
-#--COPY (SELECT distinct(a.nome_spp_atualizada), count(a.gid) as val, a.ameaca_geral as categoria FROM fauna.anfibios_sir as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) where a.ameaca_geral in ('CR','EN','VU','NT') group by a.nome_spp_atualizada, a.ameaca_geral ) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/anfibios_ameacados.csv' WITH CSV HEADER;
-COPY (SELECT distinct(aves.nome_spp_atualizada), count(aves.gid) as val, aves.ameaca_geral as categoria FROM fauna.aves_sir as aves JOIN grid.grid_sir as g ON ST_Contains(g.geom, aves.geom) where aves.ameaca_geral in ('CR','EN','VU','NT') group by aves.nome_spp_atualizada, aves.ameaca_geral ) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/aves_ameacadas.csv' WITH CSV HEADER;
-COPY(SELECT distinct(mg_mam.nome_spp_atualizada), count(mg_mam.gid) as val, mg_mam.ameaca_geral as categoria FROM fauna.mg_mamiferos_sir as mg_mam JOIN grid.grid_sir as g ON ST_Contains(g.geom, mg_mam.geom) where mg_mam.ameaca_geral in ('CR','EN','VU','NT') group by mg_mam.nome_spp_atualizada, mg_mam.ameaca_geral ) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/mg_mam_ameacadas.csv' WITH CSV HEADER;
-COPY (SELECT distinct(mor.nome_spp_atualizada), count(mor.gid) as val, mor.ameaca_geral as categoria FROM fauna.morcegos_sir as mor JOIN grid.grid_sir as g ON ST_Contains(g.geom, mor.geom) where mor.ameaca_geral in ('CR','EN','VU','NT') group by mor.nome_spp_atualizada, mor.ameaca_geral ) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/mor_ameacadas.csv' WITH CSV HEADER;
-#--COPY (SELECT distinct(peq_mam.nome_spp_atualizada), count(peq_mam.gid) as val, peq_mam.ameaca_geral as categoria FROM fauna.peq_mamiferos_sir as peq_mam JOIN grid.grid_sir as g ON ST_Contains(g.geom, peq_mam.geom) where peq_mam.ameaca_geral in ('CR','EN','VU','NT') group by peq_mam.nome_spp_atualizada, peq_mam.ameaca_geral ) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/peq_mam_ameacadas.csv' WITH CSV HEADER;
-COPY (SELECT distinct(rep.nome_spp_atualizada), count(rep.gid) as val, rep.ameaca_geral as categoria FROM fauna.repteis_sir as rep JOIN grid.grid_sir as g ON ST_Contains(g.geom, rep.geom) where rep.ameaca_geral in ('CR','EN','VU','NT') group by rep.nome_spp_atualizada, rep.ameaca_geral) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/rep_ameacadas.csv' WITH CSV HEADER;
+COPY (SELECT distinct(a.nome_spp), count(a.gid) as val, a.categoria as categoria FROM workshop.ameacadas as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) group by a.nome_spp, a.categoria) TO '/home/felipe/pgsql/Carajas/workshop/flora/mudancas/ameacadas/flora_ameacada.csv' WITH CSV HEADER;
+
 \q
 exit
 exit
 
 ##########################
 ## CARIAR BASH
-./aves_ameacadas_EXE.sh
-./mg_mam_ameacadas_EXE.sh
-./mor_ameacadas_EXE.sh
-./repteis_ameacadas_EXE.sh
-#########################
-
-######
-##Rasterizando a lista de spp fauna ameacadas
-######
-cd ameacadas/
-for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
-cd ..
-
-######
-##ALVO: ESPESCIES ENDEMICAS CANGA
-######
-sudo su
-su postgres
-psql carajas
-## Listar anfibios endemicas
-COPY (SELECT distinct(a.nome_spp_atualizada), count(a.gid) as val FROM fauna.anfibios_sir as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) where a.class_endemismo ='Canga' group by a.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/anfibios_endemicos.csv' WITH CSV HEADER;
-## Listar aves endemicas
-COPY (SELECT distinct(a.nome_spp_atualizada), count(a.gid) as val FROM fauna.aves_sir as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) where a.endemismo_canga ='sim' group by a.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/aves_endemicos.csv' WITH CSV HEADER;
-## Listar mg_mamiferos endemicas
---COPY (SELECT distinct(a.nome_spp_atualizada), count(a.gid) as val FROM fauna.mg_mamiferos_sir as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) where a.endemismo_canga ='sim' group by a.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/mg_mamiferos_endemicos.csv' WITH CSV HEADER;
-## Listar morcegos endemicas
-COPY (SELECT distinct(a.nome_spp_atualizada), count(a.gid) as val FROM fauna.morcegos_sir as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) where a.endemismo_canga ='sim' group by a.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/morcegos_endemicos.csv' WITH CSV HEADER;
-## Listar peq_mamiferos endemicas
---COPY (SELECT distinct(a.nome_spp_atualizada), count(a.gid) as val FROM fauna.peq_mamiferos_sir as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) where a.endemismo_canga ='sim' group by a.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/peq_mamiferos_endemicos.csv' WITH CSV HEADER;
-## Listar repteis endemicas
-COPY (SELECT distinct(a.nome_spp_atualizada), count(a.gid) as val FROM fauna.repteis_sir as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) where a.endemismo_canga ='sim' group by a.nome_spp_atualizada) TO '/home/felipe/Dropbox/CARAJAS/Dados/Fauna/Output/repteis_endemicos.csv' WITH CSV HEADER;
-\q
-exit
-
-./repteis_endemicos_EXE.sh
-./morcegos_endemicos_EXE.sh
-./aves_endemicos_EXE.sh
-./anfibios_endemicos_EXE.sh
-
-######
-##Rasterizando a lista de spp fauna ameacadas
-######
-cd endemicas/
-for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
-cd ..
-
---FLORA
-##############
-## ALVO: LISTA SPP
-##############
-sudo su
-su postgres
-psql carajas
-## Lista de especies FLORA
-COPY (SELECT distinct(a.nome_spp), count(a.gid) as val FROM flora.flora as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) group by a.nome_spp) TO '/home/felipe/Dropbox/CARAJAS/Dados/Flora/Output/lista_spp_FLORA.csv' WITH CSV HEADER;
-## Lista de esécies FLORA ExTRATIVISMO
---update flora.flora_extrativismo set nome='Jaborandi';
-COPY (SELECT distinct(a.nome), count(a.gid) as val FROM flora.flora_extrativismo as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) group by a.nome) TO '/home/felipe/Dropbox/CARAJAS/Dados/Flora/Output/lista_extrativismo_FLORA.csv' WITH CSV HEADER;
-##Lista especies fabaceae
-COPY (SELECT distinct(a.nome_spp), count(a.gid) as val FROM flora.leguminosas as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) group by a.nome_spp) TO '/home/felipe/Dropbox/CARAJAS/Dados/Flora/Output/lista_fabaceae_FLORA.csv' WITH CSV HEADER;
-\q
-exit
-cd Flora/Output
-./lista_flora_EXE.sh
-./lista_extrativismo_EXE.sh
-./lista_fabaceae_EXE.sh
-
-##############
-## ALVO: spp FLORA AMEACADAS flora.flora
-##############
-sudo su
-su postgres
-psql carajas
-
-##Criando a lista das especies ameacadas
-COPY (SELECT distinct(a.nome_spp), count(a.gid) as val, a.categoria_ as categoria FROM flora.flora as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) where a.categoria_ in ('CR','EN','VU','NT','Rara') group by a.nome_spp, a.categoria_ ) TO '/home/felipe/Dropbox/CARAJAS/Dados/Flora/Output/Flora_ameacada.csv' WITH CSV HEADER;
-\q
-exit
 ./flora_ameacadas_EXE.sh
-
-######
-##Rasterizando a lista de spp FLORA
-######
-cd ameacadas/
-for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
-cd ..
-
---GEOAMBIENTES
-##############
-## ALVO: Areas umidas
-##############
-cd geoambientes/Output
-sudo su
-su postgres
-#Nao e necessario Criar a lista dos geoambientes umidos
-pgsql2shp -f umidos/Geoamb_umidos.shp -h localhost -u postgres -P postgres carajas "SELECT row_number()over(order by g.gid) as id, round(sum(st_area(st_intersection(c.geom,g.geom)))::numeric,2) as val, g.geom FROM public.geoambientes as c join grid.grid_sir as g ON ST_intersects(c.geom, g.geom) where c.geossistem='Ambientes Sob Influncia Hidrica' GROUP BY g.geom, g.gid"
-##############
-## ALVO: LAGOAS
-##############
-sudo su
-su postgres
-pgsql2shp -f umidos/Lagoas.shp -h localhost -u postgres -P postgres carajas "SELECT row_number()over(order by g.gid) as id,round(sum(st_area(st_intersection(c.geom,g.geom)))::numeric,2) as val, g.geom FROM public.geoambientes as c join grid.grid_sir as g ON ST_intersects(c.geom, g.geom) where c.geossistem = 'Lagoa' GROUP BY g.geom, g.gid"
-######
-##Rasterizando geoambientes umidos
-######
-cd umidos/
-for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
-cd ..
-##############
-## ALVO: TIPOLOGIA GEOAMBIENTES
-##############
-psql carajas
-COPY (SELECT distinct(a.geofacie), round(sum(st_area(st_intersection(a.geom,g.geom)))::numeric,2) as val FROM public.geoambientes as a JOIN grid.grid_sir as g ON ST_Contains(g.geom, a.geom) group by a.geofacie ) TO '/home/felipe/Dropbox/CARAJAS/Dados/geoambientes/Output/tipologias_geoambientes.csv' WITH CSV HEADER;
-\q
-exit
-
-./tipologias_geoambientes_EXE.sh
-
-######
-##Rasterizando tipologias
-######
-cd tipologias/
-for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
-cd ..
-
---RECURSOS HIDRICOS
-##############
-## ALVO: NASCENTES
-##############
-cd Nascentes/Output
-sudo su
-su postgres
-#Nao e necessario Criar a lista dos geoambientes umidos
-pgsql2shp -f nascentes.shp -h localhost -u postgres -P postgres carajas "SELECT row_number()over(order by g.gid) as id, 1 as val, g.geom FROM public.nascentes as c join grid.grid_sir as g ON ST_intersects(c.geom, g.geom) GROUP BY g.geom, g.gid"
+#########################
 ######
 ##Rasterizando
 ######
+cd ameacadas/
 for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
 cd ..
 
+
+######
+##Rasterizando
+######
+#MUDAR PARA PASTA
+for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
+####
+
+##Erythroxylum_nelson-rosae_Plowman
+pgsql2shp -f erythroxylum.shp -h localhost -u postgres -P postgres carajas "SELECT 1 as val, g.geom FROM workshop.erythroxylum as c inner join grid.grid_sir as g ON ST_Contains(g.geom, c.geom) GROUP BY g.geom union SELECT 1 as val, g.geom FROM flora.flora as f inner join grid.grid_sir as g ON ST_Contains(g.geom, f.geom) where nome_spp= 'Erythroxylum_nelson-rosae_Plowman' GROUP BY g.geom"
+
+gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l erythroxylum erythroxylum.shp Erythroxylum_nelson-rosae_Plowman_mod.tif
+
+exit
+
+cd ..
+######
 --MASCARA
 ##############
 ## ALVO: CRIAR MASCARA
 ##############
-cd Mascara/Output
+
 sudo su
 su postgres
 --mask valor1
@@ -305,63 +169,22 @@ pgsql2shp -f mascara1.shp -h localhost -u postgres -P postgres carajas "select 1
 pgsql2shp -f mascara2.shp -h localhost -u postgres -P postgres carajas "select 2 as val, g.geom from public.geoambientes geo inner join grid.grid_sir g on st_intersects(geo.geom,g.geom)"
 --mask valor3
 pgsql2shp -f mascara3.shp -h localhost -u postgres -P postgres carajas "select 3 as val, g.geom from cavernas.cavernas c inner join grid.grid_sir g on st_intersects(c.geom,g.geom) where c.rel_maxima='1' union select 3 as val, g.geom from cavernas.cavernas c inner join grid.grid_sir g on st_intersects(c.geom,g.geom) where c.cav_testemunho='1' union select 3 as val, g.geom from infra_estrutura.lagos_buffers_500 lb inner join grid.grid_sir g on st_intersects(lb.geom,g.geom)"
+--mask valor 1000
+--TARZAN
+pgsql2shp -f tarzan_conserv.shp -h localhost -u postgres -P postgres carajas "select 1000 as val, g.geom from geoambientes c inner join grid.grid_sir g on st_intersects(c.geom,g.geom) where c.local='Tarzan'"
+--BOCAINA
+pgsql2shp -f bocaina_conserv.shp -h localhost -u postgres -P postgres carajas "select 1000 as val, g.geom from geoambientes c inner join grid.grid_sir g on st_intersects(c.geom,g.geom) where c.local='Bocaina'"
+
+--REMOCAO BOCAINA
+pgsql2shp -f sem_bocaina2.shp -h localhost -u postgres -P postgres carajas "select 0 as val, g.geom from geoambientes c inner join grid.grid_sir g on st_intersects(c.geom,g.geom) where c.local='Bocaina' union select 1 as val, g.geom from geoambientes c inner join grid.grid_sir g on st_disjoint(c.geom,g.geom) where c.local='Bocaina'"
+
+
 --feito processamento para retirar sobreposicao (removido plo de valo 2 sobreporto ao 1.Removido polvalor 2 sobreposto valor 3. marge dos shps e rasterização
 ######
 ##Rasterizando Mascara
 ######
+cd pgsql/Carajas/workshop/mascara/finais
 for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
 cd ..
 
---CUSTO
-##############
-## ALVO: CRIAR CUSTO
-##############
-cd Custo/Outptu
-pgsql2shp -f custo.shp -h localhost -u postgres -P postgres carajas "select round(avg(c.final_cost)::numeric,5) as custo , g.geom from geoambientes c inner join grid.grid_sir g on (g.geom && c.geom) and st_intersects(g.geom, c.geom) group by g.geom"
-for a in  *.shp; do echo PROCESSANDO $a; gdal_rasterize -a CUSTO -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -a_nodata 0 -l ${a%.*} $a ${a%.*}.tif; done
-
-for a in  *.*; do chmod 777 $a; done
-
-cd ..
-
-
-
-
-##############
-##MODELOS
-##############
-Using the same query, generate a CSV file using the PostgreSQL COPY command or the ogr2ogr command (in the first case, make sure that the Postgre service user has full write permission to the output directory).
-##Criando CSV com OGR2OGR
-ogr2ogr -f CSV hs_countries.csv PG:"host=localhost dbname='carajas'
-user='postgres' password='postgres'" -lco SCHEMA=public -sql "SELECT
-distinct(), 1 as val FROM
-public.cavernas as c --JOIN chp01.countries as c ON ST_Contains(c.the_geom, hs.the_geom) GROUP BY c.country_name ORDER BY c.country_name"
-##Criando csv sem ser por ORG2OGR
-postgis_cookbook=> COPY (SELECT c.country_name, MIN(c.iso2) as
-iso2, count(*) as hs_count
-FROM chp01.hotspots as hs
-JOIN chp01.countries as c
-ON ST_Contains(c.the_geom, hs.the_geom)
-GROUP BY c.country_name
-ORDER BY c.country_name) TO '/tmp/hs_countries.csv' WITH CSV
-HEADER;
-
-##Modelo para criar shp a partir do CSV
-#!/bin/bash
-while IFS="," read country iso2 hs_count
-do
-echo "Generating shapefile $iso2.shp for country $country
-($iso2) containing $hs_count features."
-ogr2ogr out_shapefiles/$iso2.shp
-PG:"dbname='carajas' user='postgres' password='postgres'"
--lco SCHEMA=chp01 -sql "SELECT ST_Transform(hs.the_geom, 4326),
-hs.acq_date, hs.acq_time, hs.bright_t31 FROM
-chp01.hotspots as hs JOIN chp01.countries as c ON
-ST_Contains(c.the_geom, ST_Transform(hs.the_geom, 4326)) WHERE
-c.iso2 = '$iso2'"
-done < hs_countries.csv
-
-chmod 775 export_shapefiles.sh
-mkdir out_shapefiles
-$ ./export_shapefiles.sh
-##############################################################################################
+gdal_rasterize -a val -tr 500.0 500.0 -te 550513.78 9279479.60 632013.78 9336979.60 -l sem_bocaina sem_bocaina.shp sem_bocaina.tif
