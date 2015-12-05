@@ -1,11 +1,12 @@
-
 ############## FLORA
 --ADEQUANDO GRAFIA ESPECIE MITRACARPUS CARAJAENSIS FLORA:
 select * from flora.flora where nome_spp like '%carpus_cara%'
 
 UPDATE flora.flora set nome_spp = 'Mitracarpus_carajasensis_E_L_Cabral' where nome_spp = 'Mitracarpus_carajasensis_E_L_Cabral,_Sobrado_&_E_B_Souza'
 
-
+############## CAVERNAS
+Adequação de dados de  troglobio apos insercao da contagem de troglobios
+update cavernas.cavernas set quant_troglobios=0 where quant_troglobios='#N/A'
 
 
 ############## FAUNA
